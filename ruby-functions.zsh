@@ -1,3 +1,7 @@
+#!/bin/zsh
+
+
+
 # Fonction commune pour gérer les bundles
 function ensure_bundle_installation() {
     local gemfile_dir
@@ -35,6 +39,8 @@ function create_env_file() {
     local tmp_env_file
     tmp_env_file=$(mktemp)
     env > "$tmp_env_file"
+    echo "LANG=en_US.UTF-8" >> "$tmp_env_file"
+    echo "LC_ALL=en_US.UTF-8" >> "$tmp_env_file"
     echo "$tmp_env_file"
 }
 
