@@ -117,7 +117,7 @@ function bundle() {
         -v bundle_cache31:/usr/local/bundle \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        bundler:3.1 "$@"
+        ruby-dev bundle "$@"
 
     if [[ -n "$gemfile_dir" && "$1" == "install" ]]; then
         rm -f "$gemfile_dir/.bundle_install_in_progress"
