@@ -38,7 +38,7 @@ bundle exec rubocop "${@:2}"  # Example: Ensures rubocop runs in bundler context
 docker build --build-arg USER=$(whoami) -t ruby-dev .
 ```
 
-3. Move ruby-functions.zsh in your home dir and source it from your `.zshrc`:
+3. Move ruby-functions.zsh in your home dir (or point to the one in this dir) and source it from your `.zshrc`:
 ```bash
 mv ruby-functions.zsh ~/.ruby-functions.zsh
 echo "source \"$HOME/.ruby-functions.zsh\"" >> ~/.zshrc

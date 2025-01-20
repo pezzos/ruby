@@ -30,98 +30,18 @@ function ensure_bundle_installation() {
     fi
 }
 
-function ruby() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev ruby "$@"
+# Fonction pour créer un fichier temporaire avec les variables d'environnement
+function create_env_file() {
+    local tmp_env_file
+    tmp_env_file=$(mktemp)
+    env > "$tmp_env_file"
+    echo "$tmp_env_file"
 }
 
-function irb() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev irb "$@"
-}
-
-function rails() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev rails "$@"
-}
-
-function rake() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev rake "$@"
-}
-
-function rspec() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev rspec "$@"
-}
-
-function druby() {
-    ensure_bundle_installation
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        ruby-dev bash "$@"
-}
-
-function bundle() {
-    local gemfile_dir
-    gemfile_dir=$(find_gemfile "$(pwd)")
-    if [[ -n "$gemfile_dir" && ! -f "$gemfile_dir/.bundle_install_in_progress" ]]; then
-        ensure_bundle_installation
-    fi
-
-    unset DOCKER_HOST
-    docker run --rm -i -t \
-        -v /Users/"$USER"/:/home/"$USER"/ \
-        --workdir "$(pwd | sed 's/Users/home/')" \
-        -e PWD="$(pwd | sed 's/Users/home/')" \
-        -v bundle_cache31:/usr/local/bundle \
-        -e BUNDLE_PATH=/usr/local/bundle \
-        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
-        ruby-dev bundle "$@"
-
-    if [[ -n "$gemfile_dir" && "$1" == "install" ]]; then
-        rm -f "$gemfile_dir/.bundle_install_in_progress"
-    fi
+# Fonction pour nettoyer le fichier temporaire
+function cleanup_env_file() {
+    local env_file="$1"
+    rm -f "$env_file"
 }
 
 # Helper function to find Gemfile
@@ -178,8 +98,139 @@ function find_rubocop_config() {
     return 1
 }
 
+# Fonction utilitaire pour obtenir le chemin absolu
+function get_absolute_path() {
+    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+}
+
+function ruby() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev ruby "$@"
+    cleanup_env_file "$env_file"
+}
+
+function irb() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev irb "$@"
+    cleanup_env_file "$env_file"
+}
+
+function rails() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev rails "$@"
+    cleanup_env_file "$env_file"
+}
+
+function rake() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev rake "$@"
+    cleanup_env_file "$env_file"
+}
+
+function rspec() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev rspec "$@"
+    cleanup_env_file "$env_file"
+}
+
+function druby() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev bash "$@"
+    cleanup_env_file "$env_file"
+}
+
+function bundle() {
+    local gemfile_dir
+    gemfile_dir=$(find_gemfile "$(pwd)")
+    if [[ -n "$gemfile_dir" && ! -f "$gemfile_dir/.bundle_install_in_progress" ]]; then
+        ensure_bundle_installation
+    fi
+
+    local env_file
+    env_file=$(create_env_file)
+    unset DOCKER_HOST
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        ruby-dev bundle "$@"
+    cleanup_env_file "$env_file"
+
+    if [[ -n "$gemfile_dir" && "$1" == "install" ]]; then
+        rm -f "$gemfile_dir/.bundle_install_in_progress"
+    fi
+}
+
+
+
 function rubocop() {
     ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
     local args=()
     local files=()
     local config_file=""
@@ -242,9 +293,5 @@ function rubocop() {
             -e PWD="$(pwd | sed 's/Users/home/')" \
             ruby-dev bundle exec rubocop "${args[@]}" "${files[@]}"
     fi
-}
-
-# Fonction utilitaire pour obtenir le chemin absolu
-function get_absolute_path() {
-    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
+    cleanup_env_file "$env_file"
 }
