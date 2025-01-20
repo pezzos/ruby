@@ -17,6 +17,13 @@ elif [ "$1" = "rails" ]; then
     exec bundle exec rails "${@:2}"
 elif [ "$1" = "rake" ]; then
     exec bundle exec rake "${@:2}"
+elif [ "$1" = "gem" ]; then
+    exec gem "${@:2}"
+elif [ "$1" = "kitchen" ]; then
+    exec bundle exec kitchen "${@:2}"
+elif [ "$1" = "druby" ]; then
+    exec bash "${@:2}"
 else
     exec "$@"
 fi
+

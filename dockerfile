@@ -14,13 +14,41 @@ RUN useradd -m -s /bin/bash $USER
 # Support for MacOS path compatibility
 RUN ln -s /home /Users
 
-# Install common development tools
+# Install common development tools and dependencies
 RUN apt update && apt -y install \
     vim \
     graphviz \
     git \
     build-essential \
+    libxml2-dev \
+    libxslt-dev \
+    pkg-config \
+    libyaml-dev \
+    zlib1g-dev \
     && apt clean
+
+# Set build environment for ARM64
+ENV NOKOGIRI_USE_SYSTEM_LIBRARIES=1
+ENV CFLAGS="-Wno-error"
+ENV ARCHFLAGS="-arch arm64"
+ENV RUBY_CONFIGURE_OPTS="--with-arch=arm64"
+
+# Configure Ruby and Bundler
+ENV RUBY_VERSION=3.1.0
+ENV GEM_HOME=/usr/local/bundle
+ENV BUNDLE_PATH=/usr/local/bundle
+ENV PATH=$GEM_HOME/bin:$PATH
+
+# Update RubyGems and install required gems with specific versions
+RUN gem update --system && \
+    gem install psych -v 5.2.3 --no-document && \
+    gem install bundler -v 2.5.23 --no-document && \
+    gem install rubygems-update && \
+    gem install chef-cli -v 5.6.1 --no-document
+
+# Create bundle cache directory and set permissions
+RUN mkdir -p /usr/local/bundle && \
+    chown -R $USER:$USER /usr/local/bundle
 
 # Set up the working directory
 WORKDIR /workspace
@@ -34,6 +62,9 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 
 # Switch to non-root user after all root operations are complete
 USER $USER
+
+# Define volume for bundle cache
+VOLUME ["/usr/local/bundle"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["bash"]

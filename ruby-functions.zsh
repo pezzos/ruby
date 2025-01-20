@@ -20,7 +20,7 @@ function ensure_bundle_installation() {
             echo "ℹ️ Running bundle install in $gemfile_dir..." >&2
 
             touch "$gemfile_dir/.bundle_install_in_progress"
-            (cd "$gemfile_dir" && bundle install && bundle update)
+            (cd "$gemfile_dir" && bundle clean --force && bundle install && bundle update)
             rm -f "$gemfile_dir/.bundle_install_in_progress"
 
             date +%s > "$gemfile_dir/.last_bundle_install"
@@ -313,6 +313,22 @@ function kitchen() {
         --workdir "$(pwd | sed 's/Users/home/')" \
         -e PWD="$(pwd | sed 's/Users/home/')" \
         ruby-dev bundle exec kitchen "$@"
+    cleanup_env_file "$env_file"
+}
+
+function gem() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev gem "$@"
     cleanup_env_file "$env_file"
 }
 
