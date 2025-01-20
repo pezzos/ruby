@@ -225,8 +225,6 @@ function bundle() {
     fi
 }
 
-
-
 function rubocop() {
     ensure_bundle_installation
     local env_file
@@ -294,4 +292,24 @@ function rubocop() {
             ruby-dev bundle exec rubocop "${args[@]}" "${files[@]}"
     fi
     cleanup_env_file "$env_file"
+}
+
+function kitchen() {
+    ensure_bundle_installation
+    local env_file
+    env_file=$(create_env_file)
+    docker run --rm -i -t \
+        --env-file "$env_file" \
+        -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -e BUNDLE_PATH=/usr/local/bundle \
+        -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+        --workdir "$(pwd | sed 's/Users/home/')" \
+        -e PWD="$(pwd | sed 's/Users/home/')" \
+        ruby-dev bundle exec kitchen "$@"
+    cleanup_env_file "$env_file"
+}
+
+function aws-login() {
+    aws sso login --profile test-kitchen
 }
