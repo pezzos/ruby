@@ -20,7 +20,7 @@ function ensure_bundle_installation() {
             echo "ℹ️ Running bundle install in $gemfile_dir..." >&2
 
             touch "$gemfile_dir/.bundle_install_in_progress"
-            (cd "$gemfile_dir" && bundle install)
+            (cd "$gemfile_dir" && bundle install && bundle update)
             rm -f "$gemfile_dir/.bundle_install_in_progress"
 
             date +%s > "$gemfile_dir/.last_bundle_install"
