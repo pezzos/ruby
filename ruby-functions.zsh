@@ -1,8 +1,6 @@
 #!/bin/zsh
 
-
-
-# Fonction commune pour gérer les bundles
+# Function to ensure bundle installation
 function ensure_bundle_installation() {
     local gemfile_dir
     gemfile_dir=$(find_gemfile "$(pwd)")
@@ -16,7 +14,7 @@ function ensure_bundle_installation() {
             echo "ℹ️ This repo needs bundle install..." >&2
             echo "ℹ️ Running bundle install in $gemfile_dir..." >&2
 
-            # Exécuter une commande Docker dédiée pour gérer le lock et l'installation
+            # Run a dedicated Docker command to manage the lock and installation
             docker run --rm \
                 -v /Users/"$USER"/:/home/"$USER"/ \
                 -v bundle_cache31:/usr/local/bundle \
@@ -38,14 +36,14 @@ function ensure_bundle_installation() {
                     bundle update
                 "
 
-            # Mise à jour du timestamp localement
+            # Update the timestamp locally
             date +%s > "$gemfile_dir/.last_bundle_install"
             echo "ℹ️ Bundle install completed" >&2
         fi
     fi
 }
 
-# Fonction pour créer un fichier temporaire avec les variables d'environnement
+# Function to create a temporary file with environment variables
 function create_env_file() {
     local tmp_env_file
     tmp_env_file=$(mktemp)
@@ -55,7 +53,7 @@ function create_env_file() {
     echo "$tmp_env_file"
 }
 
-# Fonction pour nettoyer le fichier temporaire
+# Function to clean up the temporary file
 function cleanup_env_file() {
     local env_file="$1"
     rm -f "$env_file"
@@ -67,12 +65,12 @@ function find_gemfile() {
     current_dir="$1"
     while [[ "$current_dir" != "/" ]]; do
         if [[ -f "$current_dir/Gemfile" ]]; then
-            echo "$current_dir"  # Retourne uniquement le chemin du répertoire
+            echo "$current_dir"
             return 0
         fi
         current_dir="$(dirname "$current_dir")"
     done
-    echo ""  # Retourne une chaîne vide si rien n'est trouvé
+    echo ""
     return 1
 }
 
@@ -100,26 +98,28 @@ function should_bundle_install() {
     return 1
 }
 
-# Helper function to find rubocop config
+# Helper function to find rubocop config file in current or parent directories
 function find_rubocop_config() {
     local current_dir
     current_dir="$1"
     while [[ "$current_dir" != "/" ]]; do
         if [[ -f "$current_dir/.rubocop.yml" ]]; then
-            echo "$current_dir/.rubocop.yml"  # Retourne le chemin complet du fichier
+            echo "$current_dir/.rubocop.yml"
             return 0
         fi
         current_dir="$(dirname "$current_dir")"
     done
-    echo ""  # Retourne une chaîne vide si rien n'est trouvé
+    echo ""
     return 1
 }
 
-# Fonction utilitaire pour obtenir le chemin absolu
+# Utility function to get absolute path of a file
 function get_absolute_path() {
     echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
 
+# Main Ruby command wrapper
+# Runs Ruby commands inside Docker with proper volume mounts and environment
 function ruby() {
     ensure_bundle_installation
     local env_file
@@ -137,6 +137,8 @@ function ruby() {
     cleanup_env_file "$env_file"
 }
 
+# Interactive Ruby console wrapper
+# Provides IRB with all gems and environment from the current project
 function irb() {
     ensure_bundle_installation
     local env_file
@@ -154,6 +156,8 @@ function irb() {
     cleanup_env_file "$env_file"
 }
 
+# Rails command wrapper
+# Executes Rails commands with proper bundle and environment setup
 function rails() {
     ensure_bundle_installation
     local env_file
@@ -171,6 +175,8 @@ function rails() {
     cleanup_env_file "$env_file"
 }
 
+# Rake task runner wrapper
+# Executes Rake tasks with proper bundle context
 function rake() {
     ensure_bundle_installation
     local env_file
@@ -188,6 +194,8 @@ function rake() {
     cleanup_env_file "$env_file"
 }
 
+# RSpec test runner wrapper
+# Runs tests with proper bundle and environment configuration
 function rspec() {
     ensure_bundle_installation
     local env_file
@@ -205,6 +213,8 @@ function rspec() {
     cleanup_env_file "$env_file"
 }
 
+# Debug Ruby environment wrapper
+# Provides a bash shell inside the Ruby container for debugging
 function druby() {
     ensure_bundle_installation
     local env_file
@@ -222,6 +232,8 @@ function druby() {
     cleanup_env_file "$env_file"
 }
 
+# Bundle command wrapper with lock management
+# Handles bundle commands with proper lock files to prevent concurrent installations
 function bundle() {
     local gemfile_dir
     gemfile_dir=$(find_gemfile "$(pwd)")
@@ -249,6 +261,9 @@ function bundle() {
     fi
 }
 
+# Rubocop wrapper with advanced configuration handling
+# Automatically finds and uses the nearest .rubocop.yml configuration
+# Supports both direct file paths and directory scanning
 function rubocop() {
     ensure_bundle_installation
     local env_file
@@ -320,6 +335,8 @@ function rubocop() {
     cleanup_env_file "$env_file"
 }
 
+# Test Kitchen wrapper for Chef development
+# Executes Test Kitchen commands with proper Ruby environment
 function kitchen() {
     ensure_bundle_installation
     local env_file
@@ -337,6 +354,8 @@ function kitchen() {
     cleanup_env_file "$env_file"
 }
 
+# Gem command wrapper
+# Manages Ruby gems in the containerized environment
 function gem() {
     ensure_bundle_installation
     local env_file
@@ -354,6 +373,8 @@ function gem() {
     cleanup_env_file "$env_file"
 }
 
+# AWS SSO login helper for Test Kitchen
+# Handles AWS authentication for Test Kitchen operations
 function aws-login() {
     aws sso login --profile test-kitchen
 }

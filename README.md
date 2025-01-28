@@ -1,96 +1,158 @@
 # Ruby Development Environment with Docker
 
-This project provides a containerized Ruby development environment that seamlessly integrates with your local machine while maintaining isolation and consistency.
+This project provides a containerized Ruby development environment that seamlessly integrates with your local machine while maintaining isolation and consistency. It's designed to make Ruby development easier by handling common development tasks in a containerized environment, preventing "works on my machine" issues.
 
-## Components
+## Key Features
 
-### Dockerfile
+### Containerized Development Environment
+- Complete Ruby 3.1 environment with essential development tools
+- Automatic bundle management and gem caching
+- Concurrent installation protection with lock files
+- Seamless integration with local filesystem
+- MacOS path compatibility built-in
 
-The Dockerfile creates a development environment with the following features:
+### Smart Command Wrappers
+- Automatic bundle installation and updates (every 24 hours)
+- Intelligent configuration file detection (e.g., .rubocop.yml)
+- Proper exit code and signal handling
+- Environment variable preservation
 
-```dockerfile
-FROM ruby:3.1                # Base image with Ruby 3.1
-```
-- Uses the official Ruby image as base
-- Creates a non-root user to run commands safely
-- Sets up MacOS path compatibility by linking `/home` to `/Users`
-- Installs essential development tools (vim, git, etc.)
-- Configures the workspace and permissions
-- Uses an entrypoint script to handle commands
+### Development Tools Support
+- Ruby command execution
+- Interactive Ruby console (IRB)
+- Rails commands
+- RSpec test runner
+- Rubocop with automatic config detection
+- Rake task execution
+- Test Kitchen for Chef development
+- Bundle management
+- Gem handling
 
-### Entrypoint Script
-
-The `entrypoint.sh` script acts as a command router:
-- Handles common Ruby commands (`ruby`, `irb`, `gem`)
-- Automatically prepends `bundle exec` for tools that require it (rubocop, rspec, rails, rake)
-- Maintains proper command execution context
-- Preserves exit codes and signal handling
-
-```bash
-bundle exec rubocop "${@:2}"  # Example: Ensures rubocop runs in bundler context
-```
+### Recent Improvements
+- Added shared lock volume (`ruby_dev_locks`) to prevent concurrent bundle installations
+- Improved lock file management across containers
+- Better handling of environment variables
+- Enhanced error handling and cleanup
+- Consistent volume mounting across all commands
 
 ## Setup Instructions
-1. Get the repo wherever you want in your computer then go into it
+
+1. Clone the repository:
+```bash
+git clone <repository-url>
+cd <repository-name>
+```
 
 2. Build the Docker image:
 ```bash
 docker build --build-arg USER=$(whoami) -t ruby-dev .
 ```
 
-3. Move ruby-functions.zsh in your home dir (or point to the one in this dir) and source it from your `.zshrc`:
+3. Create required Docker volumes:
 ```bash
-mv ruby-functions.zsh ~/.ruby-functions.zsh
-echo "source \"$HOME/.ruby-functions.zsh\"" >> ~/.zshrc
+docker volume create bundle_cache31
+docker volume create ruby_dev_locks
 ```
 
-4. Source your updated `.zshrc`:
+4. Install the function definitions:
 ```bash
+echo "source \"$HOME/.ruby-functions.zsh\"" >> ~/.zshrc
 source ~/.zshrc
 ```
 
-## Usage
+## Usage Examples
 
-After setup, you can use Ruby tools as if they were installed locally:
-
+### Basic Ruby Commands
 ```bash
-# Get the ruby's version
-ruby -v
-
-# Run Ruby scripts
+# Run Ruby script
 ruby script.rb
 
-# Start interactive Ruby shell
+# Start interactive console
 irb
 
-# Run Rails commands
-rails server
-
-# Execute RSpec tests
-rspec
-
-# Run Rubocop automatically with the .rubocop.yml of the repo, even in subdir
-rubocop
+# Execute gem commands
+gem list
 ```
 
-All commands will:
-- Run inside the Docker container
-- Have access to your local files
-- Maintain bundle isolation
-- Share gem cache between runs
-- Automatically check and update bundles when needed (refresh every 24h)
+### Rails Development
+```bash
+# Create new Rails application
+rails new myapp
 
-## Features
+# Start Rails server
+rails server
 
-- **Bundle Management**: Automatic checking and installation of gems
-- **Path Compatibility**: Seamless integration between host and container paths
-- **Cache Persistence**: Shared bundle cache to avoid repeated gem downloads
-- **Development Tools**: Common tools pre-installed in the container
-- **Security**: Non-root user execution inside container
+# Run Rails console
+rails console
+```
 
-## Notes
+### Testing and Linting
+```bash
+# Run RSpec tests
+rspec
 
-- The environment uses Docker volumes to persist gems between runs, so keep `docker` running
-- Bundle installation status is tracked per repository
-- Configuration files (`.rubocop.yml`, etc.) are automatically detected
-- All commands maintain proper exit codes and signal handling
+# Run Rubocop with automatic config detection
+rubocop
+
+# Run specific Rubocop checks
+rubocop app/models
+```
+
+### Bundle Management
+```bash
+# Install dependencies
+bundle install
+
+# Update gems
+bundle update
+
+# Execute commands through bundle
+bundle exec rake db:migrate
+```
+
+## Technical Details
+
+### Volume Management
+- `bundle_cache31`: Persists installed gems
+- `ruby_dev_locks`: Manages concurrent operations
+- Local filesystem mounting: Maps your home directory
+
+### Lock System
+The environment uses a sophisticated locking system to prevent concurrent bundle installations:
+- Lock files are stored in a dedicated Docker volume
+- Each project gets a unique lock based on its path
+- Automatic cleanup ensures no orphaned locks
+- Built-in timeout and retry mechanism
+
+### Environment Handling
+- Preserves local environment variables
+- Maintains proper locale settings
+- Handles path translations between host and container
+
+## Troubleshooting
+
+### Common Issues
+1. Lock files not clearing:
+```bash
+docker volume rm ruby_dev_locks
+docker volume create ruby_dev_locks
+```
+
+2. Bundle cache issues:
+```bash
+docker volume rm bundle_cache31
+docker volume create bundle_cache31
+```
+
+3. Permission problems:
+```bash
+docker build --build-arg USER=$(whoami) -t ruby-dev .
+```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit pull requests with improvements or bug fixes.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
