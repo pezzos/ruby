@@ -156,3 +156,12 @@ Contributions are welcome! Please feel free to submit pull requests with improve
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.
+
+#### Best Practices
+
+When modifying the entrypoint:
+- Maintain the use of `exec` for proper signal handling
+- Consider bundle context requirements
+- Preserve argument passing with `"${@:2}"`
+- Add appropriate error handling
+- Document new commands and their usage
