@@ -8,29 +8,40 @@ function ensure_bundle_installation() {
     gemfile_dir=$(find_gemfile "$(pwd)")
 
     if [[ -n "$gemfile_dir" ]]; then
-        # echo "ℹ️ Found Gemfile in $gemfile_dir" >&2
-
-        if [[ -f "$gemfile_dir/.bundle_install_in_progress" ]]; then
-            echo "ℹ️ Bundle installation already in progress, skipping check" >&2
-            return 0
-        fi
+        # Utiliser un hash du chemin comme identifiant unique
+        local dir_hash=$(echo "$gemfile_dir" | md5sum | cut -d' ' -f1)
+        local lock_file="/var/lock/ruby-dev/bundle_${dir_hash}.lock"
 
         if should_bundle_install "$gemfile_dir"; then
             echo "ℹ️ This repo needs bundle install..." >&2
             echo "ℹ️ Running bundle install in $gemfile_dir..." >&2
 
-            touch "$gemfile_dir/.bundle_install_in_progress"
-            (cd "$gemfile_dir" && bundle clean --force && bundle install && bundle update)
-            rm -f "$gemfile_dir/.bundle_install_in_progress"
+            # Exécuter une commande Docker dédiée pour gérer le lock et l'installation
+            docker run --rm \
+                -v /Users/"$USER"/:/home/"$USER"/ \
+                -v bundle_cache31:/usr/local/bundle \
+                -v ruby_dev_locks:/var/lock/ruby-dev \
+                -e BUNDLE_PATH=/usr/local/bundle \
+                -e BUNDLE_APP_CONFIG=/usr/local/bundle \
+                --workdir "$(pwd | sed 's/Users/home/')" \
+                ruby-dev \
+                sh -c "
+                    if [ -f $lock_file ]; then
+                        echo 'Bundle installation already in progress'
+                        exit 0
+                    fi
+                    trap 'rm -f $lock_file' EXIT
+                    echo \$\$ > $lock_file && \
+                    cd $(echo "$gemfile_dir" | sed 's/Users/home/') && \
+                    bundle clean --force && \
+                    bundle install && \
+                    bundle update
+                "
 
+            # Mise à jour du timestamp localement
             date +%s > "$gemfile_dir/.last_bundle_install"
             echo "ℹ️ Bundle install completed" >&2
-            # echo "ℹ️ Timestamp updated in $gemfile_dir/.last_bundle_install" >&2
-        # else
-            # echo "ℹ️ Bundle is up to date (last run: $(date -r "$gemfile_dir/.last_bundle_install"))" >&2
         fi
-    # else
-        # echo "ℹ️ No Gemfile found in the current directory or any parent directory" >&2
     fi
 }
 
@@ -117,6 +128,7 @@ function ruby() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -133,6 +145,7 @@ function irb() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -149,6 +162,7 @@ function rails() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -165,6 +179,7 @@ function rake() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -181,6 +196,7 @@ function rspec() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -197,6 +213,7 @@ function druby() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -218,9 +235,10 @@ function bundle() {
     docker run --rm -i -t \
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
+        -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         --workdir "$(pwd | sed 's/Users/home/')" \
         -e PWD="$(pwd | sed 's/Users/home/')" \
-        -v bundle_cache31:/usr/local/bundle \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         ruby-dev bundle "$@"
@@ -283,6 +301,7 @@ function rubocop() {
             -v "$config_dir":/workspace \
             -v "$(pwd)":/app \
             -v bundle_cache31:/usr/local/bundle \
+            -v ruby_dev_locks:/var/lock/ruby-dev \
             -e BUNDLE_PATH=/usr/local/bundle \
             -e BUNDLE_APP_CONFIG=/usr/local/bundle \
             --workdir /app \
@@ -291,6 +310,7 @@ function rubocop() {
         docker run --rm -i -t \
             -v /Users/"$USER"/:/home/"$USER"/ \
             -v bundle_cache31:/usr/local/bundle \
+            -v ruby_dev_locks:/var/lock/ruby-dev \
             -e BUNDLE_PATH=/usr/local/bundle \
             -e BUNDLE_APP_CONFIG=/usr/local/bundle \
             --workdir "$(pwd | sed 's/Users/home/')" \
@@ -308,6 +328,7 @@ function kitchen() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \
@@ -324,6 +345,7 @@ function gem() {
         --env-file "$env_file" \
         -v /Users/"$USER"/:/home/"$USER"/ \
         -v bundle_cache31:/usr/local/bundle \
+        -v ruby_dev_locks:/var/lock/ruby-dev \
         -e BUNDLE_PATH=/usr/local/bundle \
         -e BUNDLE_APP_CONFIG=/usr/local/bundle \
         --workdir "$(pwd | sed 's/Users/home/')" \

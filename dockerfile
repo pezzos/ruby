@@ -46,9 +46,9 @@ RUN gem update --system && \
     gem install rubygems-update && \
     gem install chef-cli -v 5.6.1 --no-document
 
-# Create bundle cache directory and set permissions
-RUN mkdir -p /usr/local/bundle && \
-    chown -R $USER:$USER /usr/local/bundle
+# Create directories for locks and bundle cache
+RUN mkdir -p /usr/local/bundle /var/lock/ruby-dev && \
+    chown -R $USER:$USER /usr/local/bundle /var/lock/ruby-dev
 
 # Set up the working directory
 WORKDIR /workspace
@@ -63,8 +63,8 @@ RUN chmod +x /usr/local/bin/entrypoint.sh
 # Switch to non-root user after all root operations are complete
 USER $USER
 
-# Define volume for bundle cache
-VOLUME ["/usr/local/bundle"]
+# Define volumes
+VOLUME ["/usr/local/bundle", "/var/lock/ruby-dev"]
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["bash"]
