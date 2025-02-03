@@ -377,4 +377,6 @@ function gem() {
 # Handles AWS authentication for Test Kitchen operations
 function aws-login() {
     aws sso login --profile test-kitchen
+    export AWS_PROFILE=test-kitchen
+    export $(aws configure export-credentials --profile test-kitchen --format env)
 }
