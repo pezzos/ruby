@@ -7,33 +7,27 @@ This project provides a containerized Ruby development environment that seamless
 ### Containerized Development Environment
 - Complete Ruby 3.1 environment with essential development tools
 - Automatic bundle management and gem caching
-- Concurrent installation protection with lock files
+- Basic concurrent installation protection (via status checks)
 - Seamless integration with local filesystem
-- MacOS path compatibility built-in
+- MacOS path compatibility handled via Docker volume mapping
 
 ### Smart Command Wrappers
-- Automatic bundle installation and updates (every 24 hours)
-- Intelligent configuration file detection (e.g., .rubocop.yml)
-- Proper exit code and signal handling
-- Environment variable preservation
+- Automatic `bundle install` execution when potentially needed (based on last run timestamp).
+- Most commands run via `bundle exec` by default for correct gem context.
+- Intelligent configuration file detection (e.g., `.rubocop.yml` by RuboCop itself).
+- Proper exit code and signal handling.
+- Environment variable preservation via temporary files.
+- Enhanced error reporting for failed commands.
 
 ### Development Tools Support
 - Ruby command execution
 - Interactive Ruby console (IRB)
-- Rails commands
 - RSpec test runner
 - Rubocop with automatic config detection
 - Rake task execution
 - Test Kitchen for Chef development
 - Bundle management
 - Gem handling
-
-### Recent Improvements
-- Added shared lock volume (`ruby_dev_locks`) to prevent concurrent bundle installations
-- Improved lock file management across containers
-- Better handling of environment variables
-- Enhanced error handling and cleanup
-- Consistent volume mounting across all commands
 
 ## Setup Instructions
 
@@ -43,20 +37,21 @@ git clone <repository-url>
 cd <repository-name>
 ```
 
-2. Build the Docker image:
+2. Build the Docker image and create the required Docker volumes:
 ```bash
-docker build --build-arg USER=$(whoami) -t ruby-dev .
-```
-
-3. Create required Docker volumes:
-```bash
+# Use --progress=plain to see build logs, including cache usage
+docker build --progress=plain --build-arg USER=$(whoami) -t ruby-dev .
 docker volume create bundle_cache31
 docker volume create ruby_dev_locks
 ```
 
-4. Install the function definitions:
+3. Install the function definitions:
 ```bash
-echo "source \"$HOME/.ruby-functions.zsh\"" >> ~/.zshrc
+cp ruby-functions.zsh $HOME/.ruby-functions.zsh
+# Check if .ruby-functions.zsh is already sourced in .zshrc
+if ! grep -q 'source.*\.ruby-functions\.zsh' "$HOME/.zshrc"; then
+  echo "source \"$HOME/.ruby-functions.zsh\"" >> ~/.zshrc
+fi
 source ~/.zshrc
 ```
 
@@ -72,18 +67,6 @@ irb
 
 # Execute gem commands
 gem list
-```
-
-### Rails Development
-```bash
-# Create new Rails application
-rails new myapp
-
-# Start Rails server
-rails server
-
-# Run Rails console
-rails console
 ```
 
 ### Testing and Linting
@@ -110,24 +93,28 @@ bundle update
 bundle exec rake db:migrate
 ```
 
+### Testing the install itself
+```bash
+test-ruby
+```
+
 ## Technical Details
 
 ### Volume Management
-- `bundle_cache31`: Persists installed gems
-- `ruby_dev_locks`: Manages concurrent operations
-- Local filesystem mounting: Maps your home directory
+- `bundle_cache31`: Persists installed gems, cached across builds.
+- `ruby_dev_locks`: Persists lock files (currently minimal usage, primarily for `.last_bundle_install` if moved here).
+- Local filesystem mounting: Maps your home directory (`/Users/$USER` to `/home/$USER`).
 
-### Lock System
-The environment uses a sophisticated locking system to prevent concurrent bundle installations:
-- Lock files are stored in a dedicated Docker volume
-- Each project gets a unique lock based on its path
-- Automatic cleanup ensures no orphaned locks
-- Built-in timeout and retry mechanism
+### Bundle Installation Check
+- Before running commands like `rspec`, `rubocop`, etc., the wrapper functions check if a `bundle install` might be needed.
+- Currently, this check is based on the timestamp of a `.last_bundle_install` file created in the project root after a successful install (older than 24 hours triggers a check).
+- If needed, `bundle clean --force` followed by `bundle install` is executed automatically.
+- **Note:** This mechanism is simpler than the previous lock system and primarily prevents redundant installs during active development within a 24h window. It doesn't offer robust locking against truly parallel `bundle install` commands run manually.
 
 ### Environment Handling
-- Preserves local environment variables
-- Maintains proper locale settings
-- Handles path translations between host and container
+- Preserves most local environment variables by writing them to a temporary file passed to the container (`--env-file`).
+- Maintains proper locale settings (UTF-8).
+- Path mapping between host and container is handled directly by Docker's volume mounting.
 
 ## Troubleshooting
 
@@ -159,9 +146,14 @@ This project is licensed under the [MIT License](LICENSE) - see the [LICENSE](LI
 
 #### Best Practices
 
-When modifying the entrypoint:
+When modifying the entrypoint (`entrypoint.sh`):
 - Maintain the use of `exec` for proper signal handling
 - Consider bundle context requirements
 - Preserve argument passing with `"${@:2}"`
 - Add appropriate error handling
 - Document new commands and their usage
+
+When modifying the Zsh functions (`ruby-functions.zsh`):
+- Prefer using the `_run_in_ruby_dev` helper function.
+- Ensure `_run_bundle_install_if_needed` is called where appropriate.
+- Handle exit codes properly.
