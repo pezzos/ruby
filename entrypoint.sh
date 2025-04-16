@@ -13,57 +13,44 @@
 # $1 = "rubocop" and ${@:2} = "-a"
 
 # Command Routing Logic:
-# 1. Direct execution: Commands that don't need bundle context
-# 2. Bundled execution: Commands that require `bundle exec`
-# 3. Special cases: Like 'druby' for debugging
-# 4. Fallback: Any unrecognized command is executed directly
+# 1. Direct execution: Commands that don't need bundle context (bundle, ruby, irb, gem, bash).
+# 2. Bundled execution: All other commands are executed via `bundle exec` by default.
+# 3. Fallback: If the command is not recognized, execute directly (though the default covers this).
 
-# Forward all arguments to the appropriate command
-if [ "$1" = "bundle" ] || [ "$1" = "bundler" ]; then
-    # Direct bundle commands (no need for bundle exec)
-    exec bundle "${@:2}"
-elif [ "$1" = "ruby" ]; then
-    # Direct Ruby interpreter access
-    exec ruby "${@:2}"
-elif [ "$1" = "irb" ]; then
-    # Interactive Ruby console
-    exec irb "${@:2}"
-elif [ "$1" = "gem" ]; then
-    # Gem management commands
-    exec gem "${@:2}"
-elif [ "$1" = "rubocop" ]; then
-    # Ruby static code analyzer (needs bundle exec)
-    exec bundle exec rubocop "${@:2}"
-elif [ "$1" = "rspec" ]; then
-    # Ruby testing framework (needs bundle exec)
-    exec bundle exec rspec "${@:2}"
-elif [ "$1" = "rails" ]; then
-    # Rails framework commands (needs bundle exec)
-    exec bundle exec rails "${@:2}"
-elif [ "$1" = "rake" ]; then
-    # Ruby make tasks (needs bundle exec)
-    exec bundle exec rake "${@:2}"
-elif [ "$1" = "kitchen" ]; then
-    # Test Kitchen for infrastructure testing
-    exec bundle exec kitchen "${@:2}"
-elif [ "$1" = "druby" ]; then
-    # Debug environment with bash shell
-    exec bash "${@:2}"
-else
-    # Fallback: Execute any other command as-is
-    exec "$@"
-fi
+case "$1" in
+    bundle|bundler)
+        # Direct bundle commands (no need for bundle exec)
+        exec bundle "${@:2}"
+        ;;
+    ruby)
+        # Direct Ruby interpreter access
+        exec ruby "${@:2}"
+        ;;
+    irb)
+        # Interactive Ruby console
+        exec irb "${@:2}"
+        ;;
+    gem)
+        # Gem management commands
+        exec gem "${@:2}"
+        ;;
+    bash|sh)
+        # Direct shell access
+        exec "$1" "${@:2}"
+        ;;
+    "")
+        # No command provided: Default to an interactive bash shell.
+        # echo "Usage: docker run ruby-dev [command] [args...]" >&2
+        # echo "Starting interactive bash shell..." >&2
+        exec bash
+        ;;
+    *)
+        # Default behavior: Execute the command via `bundle exec`.
+        # This ensures the command runs within the context of the project's
+        # specific Gemfile dependencies (e.g., rubocop, rspec, rake, kitchen).
+        exec bundle exec "$@"
+        ;;
+esac
 
 # Note: The use of 'exec' is important as it replaces the current process,
 # ensuring proper signal handling and exit code propagation.
-
-# Potential Improvements:
-# 1. Add command validation before execution
-# 2. Add environment variable checks/setup
-# 3. Add logging/debugging options
-# 4. Add health checks for required services
-# 5. Add configuration file support for command mapping
-# 6. Add version checking/compatibility tests
-# 7. Add error handling and recovery
-# 8. Add support for custom command aliases
-
