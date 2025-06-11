@@ -182,7 +182,6 @@ function bundle() {
          # This lock logic seems disconnected from the new install flow.
          # Commenting out for now, re-evaluate locking strategy if needed.
          # rm -f "$gemfile_dir/.bundle_install_in_progress"
-         :
     fi
     return $bundle_status
 }
